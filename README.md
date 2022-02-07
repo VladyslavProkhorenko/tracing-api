@@ -7,7 +7,7 @@ Tracing API is a package, which allows tracking way of your business entity in t
 npm i tracing-api
 ```
 
-## Usage
+## Using current server to store tracing data
 First, you need to import package and init it. After it, you should to connect package to the database
 for storing tracing data. Method `setup` of the storage instance will run migrations for creating tables of the package.
 ```
@@ -25,6 +25,14 @@ If you want to use current server as an api for UI, you should register routes:
 const TracingAPIRoutes = require("tracing-api/routes");
 
 app.use('/tracing-ui', TracingAPIRoutes)
+```
+
+## Usage with remote server
+If you use remote server for storing trace data, all you need to do is call `initRemote` method and put server url as first
+parameter. Also, you can set object with axios headers as a second parameter.
+```
+const TracingAPI = require("tracing-api");
+const tracingService = TracingAPI.initRemote("http://localhost:3002/tracing-ui");
 ```
 
 ## Tracing
