@@ -25,6 +25,18 @@ router.get('/entity/:id/item', async function(req, res) {
 router.post('/trace', async function(req, res) {
     const { entity, item, step, data = {} } = req.body;
 
+    if (
+        !entity.trim().length ||
+        !item.trim().length ||
+        !step.trim().length
+    ) {
+        res.send({
+            status: false,
+            message: 'Invalid data. Entity, item or step is empty'
+        });
+        return;
+    }
+
     const response = await TracingAPI.trace(entity, item, step, data);
     res.send(response);
 });

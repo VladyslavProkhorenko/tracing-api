@@ -16,7 +16,7 @@ const TracingAPI = {
     {
         this.isRemote = true;
         this.axiosInstance = axios.create({
-            url: server,
+            baseURL: server,
             headers
         });
         return this;
