@@ -26,9 +26,9 @@ router.post('/trace', async function(req, res) {
     const { entity, item, step, data = {} } = req.body;
 
     if (
-        !entity.trim().length ||
-        !item.trim().length ||
-        !step.trim().length
+        !entity || !entity.trim().length ||
+        !item || !item.trim().length ||
+        !step || !step.trim().length
     ) {
         res.send({
             status: false,
