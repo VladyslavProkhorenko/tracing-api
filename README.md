@@ -3,6 +3,9 @@
 Tracing API is a package, which allows tracking way of your business entity in the system.
 
 ## Installation
+```
+npm i tracing-api
+```
 
 ## Usage
 First, you need to import package and init it. After it, you should to connect package to the database
