@@ -1,8 +1,14 @@
 const mysql = require("mysql");
 const moment = require("moment");
+const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
 const MySqlDatabaseStorage = {
     pool: null,
+
+    async setup() {
+        await MySqlDatabaseMigration((query, args = []) => this.query(query, args));
+        console.log("Storage for tracing has been initialized");
+    },
 
     connect(host, user, password, port, database) {
         this.pool = mysql.createPool({ host, user, password, port, database })
@@ -22,7 +28,7 @@ const MySqlDatabaseStorage = {
 
         return await this.query(query, args);
     },
-    async query(query, args) {
+    async query(query, args = []) {
         return new Promise((resolve, reject) => {
             if (!this.pool) this.connect();
 
@@ -32,10 +38,11 @@ const MySqlDatabaseStorage = {
                     if (error) {
                         console.error(error);
                         reject(error);
-                        return
+                        return false;
                     }
 
-                    resolve(rows, fields)
+                    resolve(rows, fields);
+                    return true;
                 }
             )
         });
