@@ -94,10 +94,18 @@ const MySqlDatabaseStorage = {
     },
 
     async registerEntity(name, key) {
-        if (await this.findEntity(key) !== null) return true;
+        if (await this.findEntity(key) !== null) {
+            console.log(`Entity ${name}[${key}] has been registered already`);
+            return true;
+        }
 
         const sql = "INSERT INTO tracing_entities (`name`, `key`) VALUES (?, ?)";
         const inserted = (await this.query(sql, [ name, key ])).insertId || null;
+
+        if (!!inserted) {
+            console.log(`Entity ${name}[${key}] has been created`);
+            return true;
+        }
 
         return !!inserted;
     },

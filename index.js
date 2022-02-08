@@ -5,7 +5,7 @@ const TracingAPI = {
     storage: null,
     isRemote: false,
 
-    init(storage = MySqlDatabaseStorage.connect())
+    init(storage = MySqlDatabaseStorage)
     {
         this.isRemote = false;
         this.storage = storage;
