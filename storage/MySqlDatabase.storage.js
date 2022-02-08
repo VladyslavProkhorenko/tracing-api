@@ -95,7 +95,7 @@ const MySqlDatabaseStorage = {
 
     async registerEntity(name, key) {
         if (await this.findEntity(key) !== null) {
-            console.log(`Entity ${name}[${key}] has been registered already`);
+            console.log(`Entity ${name} [${key}] has been registered already`);
             return true;
         }
 
@@ -103,7 +103,7 @@ const MySqlDatabaseStorage = {
         const inserted = (await this.query(sql, [ name, key ])).insertId || null;
 
         if (!!inserted) {
-            console.log(`Entity ${name}[${key}] has been created`);
+            console.log(`Entity ${name} [${key}] has been created`);
             return true;
         }
 
