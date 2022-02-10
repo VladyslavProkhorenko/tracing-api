@@ -24,7 +24,7 @@ If you want to use current server as an api for UI, you should register routes:
 ```
 const TracingAPIRoutes = require("tracing-api/routes");
 
-app.use('/tracing-ui', TracingAPIRoutes)
+app.use('/tracing', TracingAPIRoutes)
 ```
 
 ## Usage with remote server
@@ -32,7 +32,7 @@ If you use remote server for storing trace data, all you need to do is call `ini
 parameter. Also, you can set object with axios headers as a second parameter.
 ```
 const TracingAPI = require("tracing-api");
-const tracingService = TracingAPI.initRemote("http://localhost:3002/tracing-ui");
+const tracingService = TracingAPI.initRemote("http://localhost:3002/tracing");
 ```
 
 ## Tracing
