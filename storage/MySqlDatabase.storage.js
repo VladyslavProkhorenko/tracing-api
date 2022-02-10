@@ -55,12 +55,12 @@ const MySqlDatabaseStorage = {
     },
 
     async fetchEntities() {
-        const sqlForEntities = "SELECT id, name FROM tracing_entities";
+        const sqlForEntities = "SELECT id, name FROM tracing_entities ORDER BY id DESC";
         const entities = await this.query(sqlForEntities, []);
 
         const entitiesIds = entities.map( entity => entity.id);
 
-        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id IN (${entitiesIds.map( () => "?").join(", ")})`;
+        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id IN (${entitiesIds.map( () => "?").join(", ")}) ORDER BY id DESC`;
 
         const items = await this.query(sqlForItems, [...entitiesIds]);
 
@@ -75,7 +75,7 @@ const MySqlDatabaseStorage = {
         const item = (await this.query("SELECT id, name, entity_id FROM tracing_items WHERE id = ?", [ id ]))[0];
         if (!item) return null;
 
-        const steps = await this.query("SELECT id, name, datetime, data FROM tracing_steps WHERE item_id = ?", [ id ]);
+        const steps = await this.query("SELECT id, name, datetime, data FROM tracing_steps WHERE item_id = ? ORDER BY id", [ id ]);
 
         steps.forEach(step => {
             step.data = JSON.parse(step.data) || [];
@@ -88,7 +88,7 @@ const MySqlDatabaseStorage = {
 
     async searchItems(query, entityId) {
         const searchQuery = `%${query}%`
-        const sql = "SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? AND (id LIKE ? OR name LIKE ?)";
+        const sql = "SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? AND (id LIKE ? OR name LIKE ?) ORDER BY id DESC";
 
         return await this.query(sql, [ entityId, searchQuery, searchQuery ]);
     },
