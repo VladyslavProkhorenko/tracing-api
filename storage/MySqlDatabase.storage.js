@@ -56,19 +56,33 @@ const MySqlDatabaseStorage = {
 
     async fetchEntities() {
         const sqlForEntities = "SELECT id, name FROM tracing_entities ORDER BY id DESC";
-        const entities = await this.query(sqlForEntities, []);
+        return await this.query(sqlForEntities, []);
+    },
 
-        const entitiesIds = entities.map( entity => entity.id);
+    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null) {
+        page = page > 0 ? page : 1;
 
-        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id IN (${entitiesIds.map( () => "?").join(", ")}) ORDER BY id DESC`;
+        const searchQuery = `%${query}%`;
+        const searchParams = query !== null ? [ searchQuery, searchQuery ] : [];
+        const searchSql = query !== null ? 'AND (id LIKE ? OR name LIKE ?)' : '';
+        const pageStart = limit * (page - 1);
 
-        const items = await this.query(sqlForItems, [...entitiesIds]);
+        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        const items = await this.query(sqlForItems, [ entityId, ...searchParams, limit, pageStart ]);
 
-        entities.forEach( entity => {
-            entity.items = items.filter( item => item.entity_id === entity.id)
-        })
+        const sqlForCount = `SELECT COUNT(*) as count FROM tracing_items WHERE entity_id = ? ${searchSql}`;
+        const count = (await this.query(sqlForCount, [ entityId, ...searchParams ]))[0].count;
 
-        return entities;
+        let lastPage = parseInt(count / limit);
+
+        lastPage += count % limit !== 0 ? 1 : 0;
+
+        return {
+            items,
+            page,
+            lastPage,
+            count
+        }
     },
 
     async fetchItem(id) {
