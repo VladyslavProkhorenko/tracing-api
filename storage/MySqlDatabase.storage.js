@@ -4,6 +4,8 @@ const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
 const MySqlDatabaseStorage = {
     pool: null,
+    cleanPeriod: null,
+    cleanInterval: null,
 
     async setup() {
         await MySqlDatabaseMigration((query, args = []) => this.query(query, args));
@@ -149,6 +151,41 @@ const MySqlDatabaseStorage = {
         const datetime = moment().format('HH:mm:ss DD.MM.Y');
         const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
+    },
+    
+    setCleanPeriod(timeInMinutes) {
+        if (typeof timeInMinutes !== 'number') throw new Error("Time for auto deleting is not a number.");
+        if (timeInMinutes !== null && timeInMinutes <= 0) throw new Error("Time for auto deleting should be greater than zero.");
+        
+        this.cleanPeriod = timeInMinutes;
+        return this;
+    },
+    
+    async autoClean() {
+        if (!this.cleanPeriod) {
+            console.log("Cleaning period has not been configured.");
+            return this;
+        }
+        
+        console.log("Old tracing data cleaning has been started.");
+        return this;
+    },
+    
+    async startAutoClean(intervalInMinutes) {
+        if (typeof intervalInMinutes !== 'number') throw new Error("Clean interval is not a number.");
+        
+        this.stopAutoClean();
+        await this.autoClean();
+        this.cleanInterval = setInterval(async () => await this.autoClean(), intervalInMinutes * 1000 * 60);
+        return this;
+    },
+    
+    stopAutoClean() {
+        if (this.cleanInterval) {
+            clearInterval(this.cleanInterval);
+        }
+        
+        return this;
     }
 }
 
