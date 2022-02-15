@@ -2,10 +2,12 @@ const mysql = require("mysql");
 const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
+const currentDateTime = () => moment().format('HH:mm:ss DD.MM.Y');
+
 const MySqlDatabaseStorage = {
     pool: null,
-    cleanPeriod: null,
-    cleanInterval: null,
+    retentionPeriod: null,
+    retentionInterval: null,
 
     async setup() {
         await MySqlDatabaseMigration((query, args = []) => this.query(query, args));
@@ -23,7 +25,7 @@ const MySqlDatabaseStorage = {
 
     async store(event, leadId, data = []) {
         const columns = [ 'lead_id', 'event', 'data', 'created_at' ];
-        const values = [ leadId, event, JSON.stringify(data), moment().format('Y-M-D H:m:s') ]
+        const values = [ leadId, event, JSON.stringify(data), moment().format('Y-MM-DD HH:mm:ss') ]
 
         const query = 'INSERT INTO ?? (??, ??, ??, ??) VALUES(?, ?, ?, ?)';
         const args = [ TABLE, ...columns, ...values ];
@@ -141,48 +143,56 @@ const MySqlDatabaseStorage = {
     },
 
     async createItem(item, entityId) {
-        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`) VALUES(?, ?, ?)";
-        return (await this.query(sql, [ item, item, entityId ])).insertId || null;
+        const datetime = currentDateTime();
+        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`) VALUES(?, ?, ?, ?)";
+        return (await this.query(sql, [ item, item, entityId, datetime ])).insertId || null;
     },
 
     async createStep(step, data, itemId) {
         data = JSON.stringify(data);
 
-        const datetime = moment().format('HH:mm:ss DD.MM.Y');
+        const datetime = currentDateTime();
         const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
     },
     
-    setCleanPeriod(timeInMinutes) {
-        if (typeof timeInMinutes !== 'number') throw new Error("Time for auto deleting is not a number.");
-        if (timeInMinutes !== null && timeInMinutes <= 0) throw new Error("Time for auto deleting should be greater than zero.");
+    retentionPeriod(timeInMinutes) {
+        if (typeof timeInMinutes !== 'number') throw new Error("Time for retention is not a number.");
+        if (timeInMinutes <= 0) throw new Error("Time for retention should be greater than zero.");
         
-        this.cleanPeriod = timeInMinutes;
+        this.retentionPeriod = timeInMinutes;
         return this;
     },
     
-    async autoClean() {
-        if (!this.cleanPeriod) {
-            console.log("Cleaning period has not been configured.");
+    async retention() {
+        if (!this.retentionPeriod) {
+            console.log("Retention period has not been configured.");
             return this;
         }
         
         console.log("Old tracing data cleaning has been started.");
+        const period = moment().subtract(this.retentionPeriod, 'minutes').format('Y-MM-DD HH:mm:ss');
+        const deletedCount = (await this.query(
+            "DELETE FROM `tracing_items` WHERE datetime < ?",
+            [ period ]
+        )).affectedRows;
+        console.log(`"Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
         return this;
     },
     
-    async startAutoClean(intervalInMinutes) {
-        if (typeof intervalInMinutes !== 'number') throw new Error("Clean interval is not a number.");
+    async startRetention(intervalInMinutes) {
+        if (typeof intervalInMinutes !== 'number') throw new Error("Retention interval is not a number.");
+        if (intervalInMinutes <= 0) throw new Error("Retention interval should be greater than zero.");
         
-        this.stopAutoClean();
-        await this.autoClean();
-        this.cleanInterval = setInterval(async () => await this.autoClean(), intervalInMinutes * 1000 * 60);
+        this.stopRetention();
+        await this.retention();
+        this.retentionInterval = setInterval(async () => await this.retention(), intervalInMinutes * 1000 * 60);
         return this;
     },
     
-    stopAutoClean() {
-        if (this.cleanInterval) {
-            clearInterval(this.cleanInterval);
+    stopRetention() {
+        if (this.retentionInterval) {
+            clearInterval(this.retentionInterval);
         }
         
         return this;
