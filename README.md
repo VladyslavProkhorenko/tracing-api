@@ -61,6 +61,7 @@ tracing instance (id of the user or lead, as an example). Third parameter is an 
 - Lead created;
 - Lead transferred;
 - Lead deleted etc.
+
 Last parameter of the trace method is an additional data, which should be shown in the UI.
 
 ## UI
