@@ -156,7 +156,7 @@ const MySqlDatabaseStorage = {
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
     },
     
-    retentionPeriod(timeInMinutes) {
+    setRetentionPeriod(timeInMinutes) {
         if (typeof timeInMinutes !== 'number') throw new Error("Time for retention is not a number.");
         if (timeInMinutes <= 0) throw new Error("Time for retention should be greater than zero.");
         
@@ -171,16 +171,18 @@ const MySqlDatabaseStorage = {
         }
         
         console.log("Old tracing data cleaning has been started.");
-        const period = moment().subtract(this.retentionPeriod, 'minutes').format('Y-MM-DD HH:mm:ss');
-        const deletedCount = (await this.query(
-            "DELETE FROM `tracing_items` WHERE datetime < ?",
-            [ period ]
-        )).affectedRows;
-        console.log(`"Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
+        let deletedCount = 0;
+        const oldItemsIds = await this.getOldItemsIds();
+
+        if (oldItemsIds.length) {
+            deletedCount = await this.deleteOldItems(oldItemsIds);
+        }
+
+        console.log(`Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
         return this;
     },
     
-    async startRetention(intervalInMinutes) {
+    async startRetention(intervalInMinutes = 5) {
         if (typeof intervalInMinutes !== 'number') throw new Error("Retention interval is not a number.");
         if (intervalInMinutes <= 0) throw new Error("Retention interval should be greater than zero.");
         
@@ -196,6 +198,29 @@ const MySqlDatabaseStorage = {
         }
         
         return this;
+    },
+
+    async getOldItemsIds() {
+        const period = moment().subtract(this.retentionPeriod, 'minutes').format('Y-MM-DD HH:mm:ss');
+        return (await this.query(
+            "SELECT id FROM `tracing_items` WHERE datetime < ? or datetime IS NULL",
+            [ period ]
+        )).map( item => item.id);
+    },
+
+    async deleteOldItems(ids) {
+        const placeholder = ids.map( () => "?").join(", ");
+        const deletedCount = (await this.query(
+            `DELETE FROM \`tracing_items\` WHERE id IN (${placeholder})`,
+            [ ...ids ]
+        )).affectedRows;
+
+        await this.query(
+            `DELETE FROM \`tracing_steps\` WHERE item_id IN (${placeholder})`,
+            [ ...ids ]
+        );
+
+        return deletedCount;
     }
 }
 
