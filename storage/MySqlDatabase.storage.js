@@ -2,8 +2,12 @@ const mysql = require("mysql");
 const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
+const currentDateTime = () => moment().format('HH:mm:ss DD.MM.Y');
+
 const MySqlDatabaseStorage = {
     pool: null,
+    retentionPeriod: null,
+    retentionInterval: null,
 
     async setup() {
         await MySqlDatabaseMigration((query, args = []) => this.query(query, args));
@@ -21,7 +25,7 @@ const MySqlDatabaseStorage = {
 
     async store(event, leadId, data = []) {
         const columns = [ 'lead_id', 'event', 'data', 'created_at' ];
-        const values = [ leadId, event, JSON.stringify(data), moment().format('Y-M-D H:m:s') ]
+        const values = [ leadId, event, JSON.stringify(data), moment().format('Y-MM-DD HH:mm:ss') ]
 
         const query = 'INSERT INTO ?? (??, ??, ??, ??) VALUES(?, ?, ?, ?)';
         const args = [ TABLE, ...columns, ...values ];
@@ -139,16 +143,84 @@ const MySqlDatabaseStorage = {
     },
 
     async createItem(item, entityId) {
-        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`) VALUES(?, ?, ?)";
-        return (await this.query(sql, [ item, item, entityId ])).insertId || null;
+        const datetime = currentDateTime();
+        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`) VALUES(?, ?, ?, ?)";
+        return (await this.query(sql, [ item, item, entityId, datetime ])).insertId || null;
     },
 
     async createStep(step, data, itemId) {
         data = JSON.stringify(data);
 
-        const datetime = moment().format('HH:mm:ss DD.MM.Y');
+        const datetime = currentDateTime();
         const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
+    },
+    
+    setRetentionPeriod(timeInMinutes) {
+        if (typeof timeInMinutes !== 'number') throw new Error("Time for retention is not a number.");
+        if (timeInMinutes <= 0) throw new Error("Time for retention should be greater than zero.");
+        
+        this.retentionPeriod = timeInMinutes;
+        return this;
+    },
+    
+    async retention() {
+        if (!this.retentionPeriod) {
+            console.log("Retention period has not been configured.");
+            return this;
+        }
+        
+        console.log("Old tracing data cleaning has been started.");
+        let deletedCount = 0;
+        const oldItemsIds = await this.getOldItemsIds();
+
+        if (oldItemsIds.length) {
+            deletedCount = await this.deleteItems(oldItemsIds);
+        }
+
+        console.log(`Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
+        return this;
+    },
+    
+    async startRetention(intervalInMinutes = 5) {
+        if (typeof intervalInMinutes !== 'number') throw new Error("Retention interval is not a number.");
+        if (intervalInMinutes <= 0) throw new Error("Retention interval should be greater than zero.");
+        
+        this.stopRetention();
+        await this.retention();
+        this.retentionInterval = setInterval(async () => await this.retention(), intervalInMinutes * 1000 * 60);
+        return this;
+    },
+    
+    stopRetention() {
+        if (this.retentionInterval) {
+            clearInterval(this.retentionInterval);
+        }
+        
+        return this;
+    },
+
+    async getOldItemsIds() {
+        const period = moment().subtract(this.retentionPeriod, 'minutes').format('Y-MM-DD HH:mm:ss');
+        return (await this.query(
+            "SELECT id FROM `tracing_items` WHERE datetime < ? or datetime IS NULL",
+            [ period ]
+        )).map( item => item.id);
+    },
+
+    async deleteItems(ids) {
+        const placeholder = ids.map( () => "?").join(", ");
+        const deletedCount = (await this.query(
+            `DELETE FROM \`tracing_items\` WHERE id IN (${placeholder})`,
+            [ ...ids ]
+        )).affectedRows;
+
+        await this.query(
+            `DELETE FROM \`tracing_steps\` WHERE item_id IN (${placeholder})`,
+            [ ...ids ]
+        );
+
+        return deletedCount;
     }
 }
 

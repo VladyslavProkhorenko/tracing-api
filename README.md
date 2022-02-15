@@ -10,14 +10,27 @@ npm i tracing-api
 ## Using current server to store tracing data
 First, you need to import package and init it. After it, you should to connect package to the database
 for storing tracing data. Method `setup` of the storage instance will run migrations for creating tables of the package.
+Also, before calling any methods for tracing, tracing entities should be registered. Name and key of the entity are used as
+parameters.
+
+If you don't want to store all tracing data, you can set retention period (in minutes) and start retention. Method
+`startRetention` gives ability to set interval between checks (in minutes). In any time you can stop retention with
+calling of method `stopRetention`. 
 ```
 const TracingAPI = require("tracing-api");
 
 const tracing = TracingAPI.init();
-tracing
-    .storage
+const tracingStorage = tracing.storage;
+
+tracingStorage
     .connect('DB_HOST', 'DB_USER', 'DB_PASSWORD', DB_PORT, 'DB_NAME')
-    .setup();
+    .setup()
+    .then(() => {
+        tracingStorage.setRetentionPeriod(60 * 24 * 30).startRetention(5);
+        tracing.registerEntity('Leads', 'leads');
+        tracing.registerEntity('Users', 'users');
+        tracing.registerEntity('Calls', 'calls');
+    });
 ```
 
 If you want to use current server as an api for UI, you should register routes:
@@ -36,14 +49,6 @@ const tracingService = TracingAPI.initRemote("http://localhost:3002/tracing");
 ```
 
 ## Tracing
-Before calling any methods for tracing, tracing entities should be registered. Name and key of the entity are used as
-parameters.
-```
-TracingAPI.registerEntity('Leads', 'leads');
-TracingAPI.registerEntity('Users', 'users');
-TracingAPI.registerEntity('Calls', 'calls');
-```
-
 For tracing instances of any entities you registered before, next method should be used:
 ```
 await TracingAPI.trace('users', 1, "Event name", {
