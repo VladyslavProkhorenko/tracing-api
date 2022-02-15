@@ -175,7 +175,7 @@ const MySqlDatabaseStorage = {
         const oldItemsIds = await this.getOldItemsIds();
 
         if (oldItemsIds.length) {
-            deletedCount = await this.deleteOldItems(oldItemsIds);
+            deletedCount = await this.deleteItems(oldItemsIds);
         }
 
         console.log(`Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
@@ -208,7 +208,7 @@ const MySqlDatabaseStorage = {
         )).map( item => item.id);
     },
 
-    async deleteOldItems(ids) {
+    async deleteItems(ids) {
         const placeholder = ids.map( () => "?").join(", ");
         const deletedCount = (await this.query(
             `DELETE FROM \`tracing_items\` WHERE id IN (${placeholder})`,

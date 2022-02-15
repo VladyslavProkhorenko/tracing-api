@@ -14,7 +14,8 @@ Also, before calling any methods for tracing, tracing entities should be registe
 parameters.
 
 If you don't want to store all tracing data, you can set retention period (in minutes) and start retention. Method
-`startRetention` gives ability to set interval between checks (in minutes).
+`startRetention` gives ability to set interval between checks (in minutes). In any time you can stop retention with
+calling of method `stopRetention`. 
 ```
 const TracingAPI = require("tracing-api");
 
@@ -25,7 +26,7 @@ tracingStorage
     .connect('DB_HOST', 'DB_USER', 'DB_PASSWORD', DB_PORT, 'DB_NAME')
     .setup()
     .then(() => {
-        tracingStorage.setRetentionPeriod(60 * 24 * 30).startRetention(.6);
+        tracingStorage.setRetentionPeriod(60 * 24 * 30).startRetention(5);
         tracing.registerEntity('Leads', 'leads');
         tracing.registerEntity('Users', 'users');
         tracing.registerEntity('Calls', 'calls');
