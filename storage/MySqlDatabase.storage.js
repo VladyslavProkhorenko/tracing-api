@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
-const currentDateTime = () => moment().format('HH:mm:ss DD.MM.Y');
+const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
 
 const MySqlDatabaseStorage = {
     pool: null,
@@ -22,16 +22,7 @@ const MySqlDatabaseStorage = {
 
         return this;
     },
-
-    async store(event, leadId, data = []) {
-        const columns = [ 'lead_id', 'event', 'data', 'created_at' ];
-        const values = [ leadId, event, JSON.stringify(data), moment().format('Y-MM-DD HH:mm:ss') ]
-
-        const query = 'INSERT INTO ?? (??, ??, ??, ??) VALUES(?, ?, ?, ?)';
-        const args = [ TABLE, ...columns, ...values ];
-
-        return await this.query(query, args);
-    },
+    
     async query(query, args = []) {
         return new Promise((resolve, reject) => {
             if (!this.pool) this.connect();
@@ -51,6 +42,7 @@ const MySqlDatabaseStorage = {
             )
         });
     },
+    
     createQueryOptions(query, args) {
         return {
             sql: query,
@@ -143,7 +135,7 @@ const MySqlDatabaseStorage = {
     },
 
     async createItem(item, entityId) {
-        const datetime = currentDateTime();
+        const datetime = moment().format(databaseDateTimeFormat);
         const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ item, item, entityId, datetime ])).insertId || null;
     },
@@ -151,7 +143,7 @@ const MySqlDatabaseStorage = {
     async createStep(step, data, itemId) {
         data = JSON.stringify(data);
 
-        const datetime = currentDateTime();
+        const datetime = moment().format(databaseDateTimeFormat);
         const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
     },
@@ -201,7 +193,7 @@ const MySqlDatabaseStorage = {
     },
 
     async getOldItemsIds() {
-        const period = moment().subtract(this.retentionPeriod, 'minutes').format('Y-MM-DD HH:mm:ss');
+        const period = moment().subtract(this.retentionPeriod, 'minutes').format(databaseDateTimeFormat);
         return (await this.query(
             "SELECT id FROM `tracing_items` WHERE datetime < ? or datetime IS NULL",
             [ period ]
