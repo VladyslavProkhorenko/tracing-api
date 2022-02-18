@@ -3,6 +3,7 @@ const MySqlDatabaseMigration = async (queryExecutor) => {
     await createTracingItemsTableIfNotExists(queryExecutor);
     await createTracingStepsTableIfNotExists(queryExecutor);
     await addDateTimeFieldToTracingItemsTableIfNotExists(queryExecutor);
+    await changeTypeOfDateTimeColumn(queryExecutor);
 }
 
 const createTracingEntitiesTableIfNotExists = async (queryExecutor) => {
@@ -47,7 +48,19 @@ const addDateTimeFieldToTracingItemsTableIfNotExists = async (queryExecutor) => 
     
     await queryExecutor(
         "ALTER TABLE `tracing_items` \n" +
-        "ADD COLUMN datetime varchar(255) \n"
+        "ADD COLUMN datetime varchar(255);"
+    );
+}
+
+const changeTypeOfDateTimeColumn = async (queryExecutor) => {
+    await queryExecutor(
+        "ALTER TABLE `tracing_items` \n" +
+        "MODIFY `datetime` timestamp NOT NULL;"
+    );
+
+    await queryExecutor(
+        "ALTER TABLE `tracing_steps` \n" +
+        "MODIFY `datetime` timestamp NOT NULL;"
     );
 }
 
