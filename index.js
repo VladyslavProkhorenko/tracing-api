@@ -45,7 +45,7 @@ const TracingAPI = {
         const entityId = await this.storage.findEntity(entity);
 
         if (!entityId) {
-            return generateResponse(false, 'Entity has not been found');
+            return generateResponse(false, 'Entity has not been found', { entity });
         }
 
         let itemId = await this.storage.findItem(item, entityId);
@@ -54,7 +54,7 @@ const TracingAPI = {
             itemId = await this.storage.createItem(item, entityId);
 
             if (itemId === null) {
-                return generateResponse(false, 'Item has not been created');
+                return generateResponse(false, 'Item has not been created', { item, entityId });
             }
         }
 
@@ -62,7 +62,7 @@ const TracingAPI = {
 
         return isStepCreated
             ? generateResponse(true, 'Tracing has been saved')
-            : generateResponse(false, 'Tracing step has not been saved');
+            : generateResponse(false, 'Tracing step has not been saved', { step, data, itemId });
     },
 
     async registerEntity(name, key) {
@@ -70,8 +70,11 @@ const TracingAPI = {
     },
 }
 
-const generateResponse = (status, message) => {
-    console.log(message);
+const generateResponse = (status, message, context = {}) => {
+    if (!status) {
+        console.log(message, context);
+    }
+
     return {
         status,
         message
