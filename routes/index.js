@@ -10,6 +10,12 @@ router.get('/entity', async function(req, res) {
      res.send(await TracingAPI.storage.fetchEntities())
 });
 
+router.get('/entity/:key', async function(req, res) {
+    const key = req.params.key;
+    res.send(await TracingAPI.storage.fetchEntity(key))
+});
+
+
 router.get('/entity/:id/item', async function(req, res) {
     const id = req.params.id;
     const page = req.query.page || 1;

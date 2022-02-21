@@ -51,8 +51,12 @@ const MySqlDatabaseStorage = {
     },
 
     async fetchEntities() {
-        const sqlForEntities = "SELECT id, name FROM tracing_entities ORDER BY id DESC";
+        const sqlForEntities = "SELECT id, name, `key` FROM tracing_entities ORDER BY id DESC";
         return await this.query(sqlForEntities, []);
+    },
+
+    async fetchEntity(key) {
+        return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `key` = ?", [ key ]))[0] || null;
     },
 
     async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null) {
