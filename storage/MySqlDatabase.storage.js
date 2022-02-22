@@ -4,6 +4,28 @@ const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
 const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
 
+const createFilteringQuery = (type, steps) => {
+    if (type === 'all' || !steps.length) return {
+        query: "",
+        params: []
+    };
+
+    if (!['include', 'exclude'].find( validType => validType === type )) return {
+        query: "",
+        params: []
+    };
+
+    const operator = type === "include" ? "IN" : "NOT IN";
+    let query = "AND id " + operator + "(\n" +
+        "SELECT item_id FROM tracing_steps WHERE name IN (" + steps.map( () => "?").join(",") + ")\n" +
+        ")";
+
+    return {
+        query,
+        params: steps
+    };
+}
+
 const MySqlDatabaseStorage = {
     pool: null,
     retentionPeriod: null,
@@ -59,16 +81,17 @@ const MySqlDatabaseStorage = {
         return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `key` = ?", [ key ]))[0] || null;
     },
 
-    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null) {
+    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
         page = page > 0 ? page : 1;
 
         const searchQuery = `%${query}%`;
         const searchParams = query !== null ? [ searchQuery, searchQuery ] : [];
         const searchSql = query !== null ? 'AND (id LIKE ? OR name LIKE ?)' : '';
         const pageStart = limit * (page - 1);
+        const filtering = createFilteringQuery(filterType, filterSteps);
 
-        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ORDER BY id DESC LIMIT ? OFFSET ?`;
-        const items = await this.query(sqlForItems, [ entityId, ...searchParams, limit, pageStart ]);
+        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        const items = await this.query(sqlForItems, [ entityId, ...searchParams, ...filtering.params, limit, pageStart ]);
 
         const sqlForCount = `SELECT COUNT(*) as count FROM tracing_items WHERE entity_id = ? ${searchSql}`;
         const count = (await this.query(sqlForCount, [ entityId, ...searchParams ]))[0].count;
@@ -83,6 +106,14 @@ const MySqlDatabaseStorage = {
             lastPage,
             count
         }
+    },
+
+    async fetchEntitySteps(entityId) {
+          const sql = "SELECT DISTINCT name FROM tracing_steps WHERE item_id IN (\n" +
+              "    SELECT id FROM tracing_items WHERE entity_id = ?\n" +
+              ");"
+
+        return this.query(sql, [ entityId ]);
     },
 
     async fetchItem(id) {
