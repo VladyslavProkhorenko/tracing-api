@@ -54,13 +54,14 @@ For tracing instances of any entities you registered before, next method should 
 await TracingAPI.trace('users', 1, "Event name", {
     firstValue: 1,
     secondValue: 'second value'
-});
+}, [ 'user with id 1', 'first user', 'user_1' ]);
 ```
 First parameter of the method shown above is a key of the registered entity. Second parameter is a unique id of your
 tracing instance (id of the user or lead, as an example). Third parameter is an event name, like:
 - Lead created;
 - Lead transferred;
 - Lead deleted etc.
+Also, you can set array with keywords for searching as a fourth parameter.
 
 Last parameter of the trace method is an additional data, which should be shown in the UI.
 
