@@ -3,6 +3,7 @@ const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
 const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
+const searchDelimiter = "|el\n";
 
 const createFilteringQuery = (type, steps) => {
     if (type === 'all' || !steps.length) return {
@@ -30,7 +31,7 @@ const prepareSearchQuery = (query) => {
     if (query === null) return [ '', [] ];
     
     const searchQuery = `%${query}%`;
-    const searchParams = [ searchQuery, searchQuery, `${searchQuery}|el` ];
+    const searchParams = [ searchQuery, searchQuery, `${searchQuery}|el%` ];
     const searchSql = 'AND (id LIKE ? OR name LIKE ? OR searchable LIKE ?)';
     
     return [ searchSql, searchParams ];
@@ -171,10 +172,10 @@ const MySqlDatabaseStorage = {
         return item ? item.id : null;
     },
 
-    async createItem(item, entityId) {
+    async createItem(item, entityId, searchKeys = []) {
         const datetime = moment().format(databaseDateTimeFormat);
-        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`) VALUES(?, ?, ?, ?)";
-        return (await this.query(sql, [ item, item, entityId, datetime ])).insertId || null;
+        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`, `searchable`) VALUES(?, ?, ?, ?, ?)";
+        return (await this.query(sql, [ item, item, entityId, datetime, searchKeys.length ? `${searchKeys.join(searchDelimiter)}${searchDelimiter}` : null ])).insertId || null;
     },
 
     async createStep(step, data, itemId) {

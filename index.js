@@ -22,16 +22,16 @@ const TracingAPI = {
         return this;
     },
 
-    async trace(entity, item, step, data = {}) {
+    async trace(entity, item, step, data = {}, searchKeys = []) {
         return this.isRemote
-            ? this.traceRemote(entity, item, step, data)
-            : this.traceLocal(entity, item, step, data);
+            ? this.traceRemote(entity, item, step, data, searchKeys)
+            : this.traceLocal(entity, item, step, data, searchKeys);
     },
 
-    async traceRemote(entity, item, step, data = {}) {
+    async traceRemote(entity, item, step, data = {}, searchKeys = []) {
         return await this.axiosInstance
             .post("/trace", {
-                entity, item, step, data
+                entity, item, step, data, searchKeys
             })
             .then( ({ data }) => {
                 return generateResponse(data.status, data.message);
@@ -41,7 +41,7 @@ const TracingAPI = {
             });
     },
 
-    async traceLocal(entity, item, step, data = {}) {
+    async traceLocal(entity, item, step, data = {}, searchKeys = []) {
         const entityId = await this.storage.findEntity(entity);
 
         if (!entityId) {
@@ -51,7 +51,7 @@ const TracingAPI = {
         let itemId = await this.storage.findItem(item, entityId);
 
         if (itemId === null) {
-            itemId = await this.storage.createItem(item, entityId);
+            itemId = await this.storage.createItem(item, entityId, searchKeys);
 
             if (itemId === null) {
                 return generateResponse(false, 'Item has not been created', { item, entityId });
