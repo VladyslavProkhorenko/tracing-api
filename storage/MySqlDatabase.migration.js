@@ -1,9 +1,14 @@
 const MySqlDatabaseMigration = async (queryExecutor) => {
-    await createTracingEntitiesTableIfNotExists(queryExecutor);
-    await createTracingItemsTableIfNotExists(queryExecutor);
-    await createTracingStepsTableIfNotExists(queryExecutor);
-    await addDateTimeFieldToTracingItemsTableIfNotExists(queryExecutor);
-    await changeTypeOfDateTimeColumn(queryExecutor);
+    const migrations = [
+        createTracingEntitiesTableIfNotExists,
+        createTracingItemsTableIfNotExists,
+        createTracingStepsTableIfNotExists,
+        addDateTimeFieldToTracingItemsTableIfNotExists,
+        changeTypeOfDateTimeColumn,
+        addSearchFieldToTracingItems
+    ];
+
+    await migrate(queryExecutor, migrations);
 }
 
 const createTracingEntitiesTableIfNotExists = async (queryExecutor) => {
@@ -64,11 +69,27 @@ const changeTypeOfDateTimeColumn = async (queryExecutor) => {
     );
 }
 
+const addSearchFieldToTracingItems = async (queryExecutor) => {
+    if (await columnExist(queryExecutor, 'tracing_items', 'searchable')) return;
+
+    await queryExecutor(
+        "ALTER TABLE `tracing_items` \n" +
+        "ADD COLUMN searchable longtext;"
+    );
+}
+
 const columnExist = async (queryExecutor, table, column) => {
     return (await queryExecutor(
         "SHOW COLUMNS FROM ?? WHERE Field = ?;",
         [ table, column ]
     )).length > 0;
+}
+
+const migrate = async (queryExecutor, migrations) => {
+    for (const migration of migrations) {
+        console.log(`Tracing API: Running migration ${migration.name}`);
+        await migration(queryExecutor)   
+    }
 }
 
 module.exports = MySqlDatabaseMigration;

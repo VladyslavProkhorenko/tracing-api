@@ -3,6 +3,7 @@ const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
 const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
+const searchDelimiter = "|el\n";
 
 const createFilteringQuery = (type, steps) => {
     if (type === 'all' || !steps.length) return {
@@ -26,6 +27,16 @@ const createFilteringQuery = (type, steps) => {
     };
 }
 
+const prepareSearchQuery = (query) => {
+    if (query === null) return [ '', [] ];
+    
+    const searchQuery = `%${query}%`;
+    const searchParams = [ searchQuery, searchQuery, `${searchQuery}|el%` ];
+    const searchSql = 'AND (id LIKE ? OR name LIKE ? OR searchable LIKE ?)';
+    
+    return [ searchSql, searchParams ];
+}
+
 const MySqlDatabaseStorage = {
     pool: null,
     retentionPeriod: null,
@@ -33,7 +44,7 @@ const MySqlDatabaseStorage = {
 
     async setup() {
         await MySqlDatabaseMigration((query, args = []) => this.query(query, args));
-        console.log("Storage for tracing has been initialized");
+        console.log("Tracing API: Storage for tracing has been initialized");
     },
 
     connect(host, user, password, port, database) {
@@ -83,10 +94,9 @@ const MySqlDatabaseStorage = {
 
     async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
         page = page > 0 ? page : 1;
-
-        const searchQuery = `%${query}%`;
-        const searchParams = query !== null ? [ searchQuery, searchQuery ] : [];
-        const searchSql = query !== null ? 'AND (id LIKE ? OR name LIKE ?)' : '';
+        
+        const [ searchSql, searchParams ] = prepareSearchQuery(query);
+        
         const pageStart = limit * (page - 1);
         const filtering = createFilteringQuery(filterType, filterSteps);
 
@@ -130,17 +140,10 @@ const MySqlDatabaseStorage = {
 
         return item;
     },
-
-    async searchItems(query, entityId) {
-        const searchQuery = `%${query}%`
-        const sql = "SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? AND (id LIKE ? OR name LIKE ?) ORDER BY id DESC";
-
-        return await this.query(sql, [ entityId, searchQuery, searchQuery ]);
-    },
-
+    
     async registerEntity(name, key) {
         if (await this.findEntity(key) !== null) {
-            console.log(`Entity ${name} [${key}] has been registered already`);
+            console.log(`Tracing API: Entity ${name} [${key}] has been registered already`);
             return true;
         }
 
@@ -148,7 +151,7 @@ const MySqlDatabaseStorage = {
         const inserted = (await this.query(sql, [ name, key ])).insertId || null;
 
         if (!!inserted) {
-            console.log(`Entity ${name} [${key}] has been created`);
+            console.log(`Tracing API: Entity ${name} [${key}] has been created`);
             return true;
         }
 
@@ -169,10 +172,10 @@ const MySqlDatabaseStorage = {
         return item ? item.id : null;
     },
 
-    async createItem(item, entityId) {
+    async createItem(item, entityId, searchKeys = []) {
         const datetime = moment().format(databaseDateTimeFormat);
-        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`) VALUES(?, ?, ?, ?)";
-        return (await this.query(sql, [ item, item, entityId, datetime ])).insertId || null;
+        const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`, `searchable`) VALUES(?, ?, ?, ?, ?)";
+        return (await this.query(sql, [ item, item, entityId, datetime, searchKeys.length ? `${searchKeys.join(searchDelimiter)}${searchDelimiter}` : null ])).insertId || null;
     },
 
     async createStep(step, data, itemId) {
@@ -193,19 +196,21 @@ const MySqlDatabaseStorage = {
     
     async retention() {
         if (!this.retentionPeriod) {
-            console.log("Retention period has not been configured.");
+            console.log("Tracing API: Retention period has not been configured.");
             return this;
         }
         
-        console.log("Old tracing data cleaning has been started.");
         let deletedCount = 0;
         const oldItemsIds = await this.getOldItemsIds();
 
         if (oldItemsIds.length) {
             deletedCount = await this.deleteItems(oldItemsIds);
         }
-
-        console.log(`Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
+        
+        if (deletedCount) {
+            console.log(`Tracing API: Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
+        }
+        
         return this;
     },
     
