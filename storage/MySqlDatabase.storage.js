@@ -5,6 +5,10 @@ const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
 const searchDelimiter = "|el\n";
 
+const formatSearchKeys = searchKeys => {
+    return searchKeys.length ? `${searchKeys.join(searchDelimiter)}${searchDelimiter}` : null;
+}
+
 const createFilteringQuery = (type, steps) => {
     if (type === 'all' || !steps.length) return {
         query: "",
@@ -166,18 +170,41 @@ const MySqlDatabaseStorage = {
     },
 
     async findItem(key, entityId) {
-        const sql = "SELECT id FROM tracing_items WHERE `key` = ? AND entity_id = ?";
+        const sql = "SELECT id, searchable FROM tracing_items WHERE `key` = ? AND entity_id = ?";
         const item = (await this.query(sql, [ key, entityId ]))[0] || null;
 
-        return item ? item.id : null;
+        return item || null;
     },
 
     async createItem(item, entityId, searchKeys = []) {
         const datetime = moment().format(databaseDateTimeFormat);
         const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`, `searchable`) VALUES(?, ?, ?, ?, ?)";
-        return (await this.query(sql, [ item, item, entityId, datetime, searchKeys.length ? `${searchKeys.join(searchDelimiter)}${searchDelimiter}` : null ])).insertId || null;
+        return (await this.query(sql, [ item, item, entityId, datetime, formatSearchKeys(searchKeys) ])).insertId || null;
     },
+    
+    async updateSearchKeys(item, searchKeys = []) {
+        let keys = null;
+        
+        if (searchKeys !== null) {
+            let itemSearchKeys = (item.searchable || '').split(searchDelimiter) || [];
 
+            itemSearchKeys = itemSearchKeys.map( key => String(key));
+            searchKeys = searchKeys.map( key => String(key));
+
+            searchKeys.forEach(key => {
+                if (!itemSearchKeys.find( itemKey => itemKey === key)) {
+                    itemSearchKeys.push(key);
+                }
+            });
+
+            itemSearchKeys = itemSearchKeys.filter( item => item.trim().length )
+            keys = formatSearchKeys(itemSearchKeys)
+        }
+        
+        const sql = "UPDATE tracing_items SET searchable = ? WHERE id = ?";
+        await this.query(sql, [ keys, item.id ])
+    },
+ 
     async createStep(step, data, itemId) {
         data = JSON.stringify(data);
 
