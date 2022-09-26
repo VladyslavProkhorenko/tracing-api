@@ -40,6 +40,25 @@ const TracingAPIRoutes = require("tracing-api/routes");
 app.use('/tracing', TracingAPIRoutes)
 ```
 
+## Queue
+Package can use queue for periodical saving of tracing items. It is
+useful, when application is high loaded and have a lot of data to trace.
+To enable queue you need to add next line to tracing package setup:
+```
+tracing.enableQueue();
+```
+Also, you can set timeout in seconds as parameter. It will be used
+as delay between data saving. Default timeout is 5 seconds.
+```
+const tracingTimeout = 10; // seconds
+tracing.enableQueue(tracingTimeout);
+```
+
+Use next method to disable queue and use default way to save trace data:
+```
+tracing.disableQueue();
+```
+
 ## Usage with remote server
 If you use remote server for storing trace data, all you need to do is call `initRemote` method and put server url as first
 parameter. Also, you can set object with axios headers as a second parameter.
