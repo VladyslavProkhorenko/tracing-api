@@ -33,12 +33,34 @@ const createFilteringQuery = (type, steps) => {
 
 const prepareSearchQuery = (query) => {
     if (query === null) return [ '', [] ];
-    
+
     const searchQuery = `%${query}%`;
-    const searchParams = [ searchQuery, searchQuery, `${searchQuery}|el%` ];
+    const searchParams = [ searchQuery, searchQuery, `${searchQuery}|${searchDelimiter}%` ];
     const searchSql = 'AND (id LIKE ? OR name LIKE ? OR searchable LIKE ?)';
-    
+
     return [ searchSql, searchParams ];
+}
+
+const prepareSearchKeysToUpdate = (item, searchKeys) => {
+    let keys = null;
+
+    if (searchKeys !== null && searchKeys !== undefined) {
+        let itemSearchKeys = (item.searchable || '').split(searchDelimiter) || [];
+
+        itemSearchKeys = itemSearchKeys.map( key => String(key));
+        searchKeys = searchKeys.map( key => String(key));
+
+        searchKeys.forEach(key => {
+            if (!itemSearchKeys.find( itemKey => itemKey === key)) {
+                itemSearchKeys.push(key);
+            }
+        });
+
+        itemSearchKeys = itemSearchKeys.filter( item => item.trim().length )
+        keys = formatSearchKeys(itemSearchKeys)
+    }
+
+    return keys;
 }
 
 const MySqlDatabaseStorage = {
@@ -52,14 +74,14 @@ const MySqlDatabaseStorage = {
     },
 
     connect(host, user, password, port, database) {
-        this.pool = mysql.createPool({ host, user, password, port, database })
+        this.pool = mysql.createPool({ host, user, password, port, database, multipleStatements: true })
         this.pool.on('connection', function (connection) {
             connection.query('SET SESSION group_concat_max_len = 500000')
         });
 
         return this;
     },
-    
+
     async query(query, args = []) {
         return new Promise((resolve, reject) => {
             if (!this.pool) this.connect();
@@ -79,7 +101,7 @@ const MySqlDatabaseStorage = {
             )
         });
     },
-    
+
     createQueryOptions(query, args) {
         return {
             sql: query,
@@ -98,9 +120,9 @@ const MySqlDatabaseStorage = {
 
     async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
         page = page > 0 ? page : 1;
-        
+
         const [ searchSql, searchParams ] = prepareSearchQuery(query);
-        
+
         const pageStart = limit * (page - 1);
         const filtering = createFilteringQuery(filterType, filterSteps);
 
@@ -144,7 +166,7 @@ const MySqlDatabaseStorage = {
 
         return item;
     },
-    
+
     async registerEntity(name, key) {
         if (await this.findEntity(key) !== null) {
             console.log(`Tracing API: Entity ${name} [${key}] has been registered already`);
@@ -169,6 +191,26 @@ const MySqlDatabaseStorage = {
         return entity ? entity.id : null;
     },
 
+    async getEntities(keys) {
+        const sql = `
+            SELECT id, \`key\` FROM tracing_entities
+            WHERE \`key\` IN (${keys.map( _ => "?").join(", ")})
+        `;
+
+        return await this.query(sql, keys);
+    },
+
+    async getItemsByKeysForEntities(keys, entitiesIds) {
+        const sql = `
+            SELECT id, \`key\`, searchable, entity_id FROM tracing_items
+            WHERE
+                \`key\` IN (${keys.map( _ => "?").join(", ")}) AND
+                entity_id IN (${entitiesIds.map( _ => "?").join(", ")})
+        `;
+
+        return await this.query(sql, [...keys, ...entitiesIds]);
+    },
+
     async findItem(key, entityId) {
         const sql = "SELECT id, searchable FROM tracing_items WHERE `key` = ? AND entity_id = ?";
         const item = (await this.query(sql, [ key, entityId ]))[0] || null;
@@ -181,30 +223,46 @@ const MySqlDatabaseStorage = {
         const sql = "INSERT INTO tracing_items (`name`, `key`, `entity_id`, `datetime`, `searchable`) VALUES(?, ?, ?, ?, ?)";
         return (await this.query(sql, [ item, item, entityId, datetime, formatSearchKeys(searchKeys) ])).insertId || null;
     },
-    
+
+    async createManyItems(items)
+    {
+        if (!items.length) return true;
+
+        const datetime = moment().format(databaseDateTimeFormat);
+
+        items = items.reduce( (acc, item) => {
+            acc.push([ item.item, item.item, item.entity_id, datetime, formatSearchKeys(item.searchKeys) ]);
+            return acc;
+        }, []);
+
+        const sql = `
+            INSERT INTO tracing_items (\`name\`, \`key\`, \`entity_id\`, \`datetime\`, \`searchable\`)
+            VALUES ${items.map( _ => "(?)").join(", ")}`;
+        return await this.query(sql, items);
+    },
+
+    async updateManyItems(items)
+    {
+        const sql = [];
+        const args = [];
+
+        items.forEach( item => {
+            const keys = prepareSearchKeysToUpdate(item, item.searchKeys);
+
+            sql.push(`UPDATE tracing_items SET searchable = ? WHERE id = ?;\n`);
+            args.push(keys, item.id);
+        });
+
+        await this.query(sql.join(""), args);
+    },
+
     async updateSearchKeys(item, searchKeys = []) {
-        let keys = null;
-        
-        if (searchKeys !== null) {
-            let itemSearchKeys = (item.searchable || '').split(searchDelimiter) || [];
+        const keys = prepareSearchKeysToUpdate(item, searchKeys);
 
-            itemSearchKeys = itemSearchKeys.map( key => String(key));
-            searchKeys = searchKeys.map( key => String(key));
-
-            searchKeys.forEach(key => {
-                if (!itemSearchKeys.find( itemKey => itemKey === key)) {
-                    itemSearchKeys.push(key);
-                }
-            });
-
-            itemSearchKeys = itemSearchKeys.filter( item => item.trim().length )
-            keys = formatSearchKeys(itemSearchKeys)
-        }
-        
         const sql = "UPDATE tracing_items SET searchable = ? WHERE id = ?";
         await this.query(sql, [ keys, item.id ])
     },
- 
+
     async createStep(step, data, itemId) {
         data = JSON.stringify(data);
 
@@ -212,50 +270,66 @@ const MySqlDatabaseStorage = {
         const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
         return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
     },
-    
+
+    async createManySteps(steps) {
+        if (!steps.length) return true;
+
+        const datetime = moment().format(databaseDateTimeFormat);
+
+        steps = steps.reduce( (acc, item) => {
+            acc.push([ item.step, datetime, item.item_id, JSON.stringify(item.data) ]);
+            return acc;
+        }, []);
+
+        const sql = `
+            INSERT INTO tracing_steps (\`name\`, \`datetime\`, \`item_id\`, \`data\`)
+            VALUES ${steps.map( _ => "(?)").join(", ")}`;
+        return await this.query(sql, steps);
+    },
+
     setRetentionPeriod(timeInMinutes) {
         if (typeof timeInMinutes !== 'number') throw new Error("Time for retention is not a number.");
         if (timeInMinutes <= 0) throw new Error("Time for retention should be greater than zero.");
-        
+
         this.retentionPeriod = timeInMinutes;
         return this;
     },
-    
+
     async retention() {
         if (!this.retentionPeriod) {
             console.log("Tracing API: Retention period has not been configured.");
             return this;
         }
-        
+
         let deletedCount = 0;
         const oldItemsIds = await this.getOldItemsIds();
 
         if (oldItemsIds.length) {
             deletedCount = await this.deleteItems(oldItemsIds);
         }
-        
+
         if (deletedCount) {
             console.log(`Tracing API: Old tracing data has been deleted. Count of deleted items: ${deletedCount}`);
         }
-        
+
         return this;
     },
-    
+
     async startRetention(intervalInMinutes = 5) {
         if (typeof intervalInMinutes !== 'number') throw new Error("Retention interval is not a number.");
         if (intervalInMinutes <= 0) throw new Error("Retention interval should be greater than zero.");
-        
+
         this.stopRetention();
         await this.retention();
         this.retentionInterval = setInterval(async () => await this.retention(), intervalInMinutes * 1000 * 60);
         return this;
     },
-    
+
     stopRetention() {
         if (this.retentionInterval) {
             clearInterval(this.retentionInterval);
         }
-        
+
         return this;
     },
 
