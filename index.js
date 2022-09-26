@@ -1,14 +1,20 @@
 const MySqlDatabaseStorage = require("./storage/MySqlDatabase.storage");
 const axios = require("axios");
+const QueueService = require( "./services/queue.service" );
 
 const TracingAPI = {
     storage: null,
     isRemote: false,
+    queue: null,
 
-    init(storage = MySqlDatabaseStorage)
+    init(storage = MySqlDatabaseStorage, queue = QueueService)
     {
         this.isRemote = false;
         this.storage = storage;
+        this.queue = queue;
+
+        this.queue.init(storage);
+
         return this;
     },
 
@@ -19,10 +25,36 @@ const TracingAPI = {
             baseURL: server,
             headers
         });
+
+        if (this.queue.enabled) {
+            this.queue.stop();
+            console.warn("Queue has been stopped. Queue can't be enabled for remote servers");
+        }
+        return this;
+    },
+
+    enableQueue(timeout = 5)
+    {
+        if (this.isRemote) {
+            throw new Error("Queue can't be enabled for remote servers");
+        }
+
+        this.queue.enable(timeout);
+        return this;
+    },
+
+    disableQueue()
+    {
+        this.queue.disable();
         return this;
     },
 
     async trace(entity, item, step, data = {}, searchKeys = []) {
+        if (this.queue.enabled) {
+            this.queue.push(entity, item, step, data, searchKeys);
+            return generateResponse(true, 'Tracing has been added to the queue');
+        }
+
         return this.isRemote
             ? this.traceRemote(entity, item, step, data, searchKeys)
             : this.traceLocal(entity, item, step, data, searchKeys);
@@ -70,7 +102,7 @@ const TracingAPI = {
 
     async registerEntity(name, key) {
         return this.storage.registerEntity(name, key);
-    },
+    }
 }
 
 const generateResponse = (status, message, context = {}) => {
