@@ -243,6 +243,8 @@ const MySqlDatabaseStorage = {
 
     async updateManyItems(items)
     {
+        if (!items.length) return true;
+
         const sql = [];
         const args = [];
 
@@ -253,7 +255,7 @@ const MySqlDatabaseStorage = {
             args.push(keys, item.id);
         });
 
-        await this.query(sql.join(""), args);
+        return await this.query(sql.join(""), args);
     },
 
     async updateSearchKeys(item, searchKeys = []) {
