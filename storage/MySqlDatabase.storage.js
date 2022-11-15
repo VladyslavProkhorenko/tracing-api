@@ -118,6 +118,10 @@ const MySqlDatabaseStorage = {
         return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `key` = ?", [ key ]))[0] || null;
     },
 
+    async fetchEntityById(id) {
+        return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `id` = ?", [ id ]))[0] || null;
+    },
+
     async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
         page = page > 0 ? page : 1;
 

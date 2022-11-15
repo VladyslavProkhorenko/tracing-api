@@ -13,6 +13,9 @@ for storing tracing data. Method `setup` of the storage instance will run migrat
 Also, before calling any methods for tracing, tracing entities should be registered. Name and key of the entity are used as
 parameters.
 
+To give ability filter items by steps, you need register list of steps for every entity. Otherwise, filtering will not
+be available.
+
 If you don't want to store all tracing data, you can set retention period (in minutes) and start retention. Method
 `startRetention` gives ability to set interval between checks (in minutes). In any time you can stop retention with
 calling of method `stopRetention`. 
@@ -30,6 +33,11 @@ tracingStorage
         tracing.registerEntity('Leads', 'leads');
         tracing.registerEntity('Users', 'users');
         tracing.registerEntity('Calls', 'calls');
+        
+        // Steps registration for making filtering items by steps available
+        tracing.registerEntitySteps('Leads', [ "Added", "Updated", "Deleted" ]);
+        tracing.registerEntitySteps('Users', [ "Registered", "Initiated call" ]);
+        tracing.registerEntitySteps('Calls', [ "Started", "Finished" ]);
     });
 ```
 

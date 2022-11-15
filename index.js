@@ -6,6 +6,7 @@ const TracingAPI = {
     storage: null,
     isRemote: false,
     queue: null,
+    entities: {},
 
     init(storage = MySqlDatabaseStorage, queue = QueueService)
     {
@@ -101,7 +102,20 @@ const TracingAPI = {
     },
 
     async registerEntity(name, key) {
+        this.entities[key] = { stepsForFiltering: {} };
         return this.storage.registerEntity(name, key);
+    },
+
+    registerEntitySteps(entity, steps) {
+        if (! this.entities[entity]) {
+            throw new Error(`No registered entity with same name: ${entity}`);
+        }
+
+        steps.forEach( step => {
+            this.entities[entity].stepsForFiltering[step] = true;
+        })
+
+        return this;
     }
 }
 
