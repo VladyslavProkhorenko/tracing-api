@@ -111,7 +111,7 @@ const addIndexes = async (queryExecutor) => {
     for (const index of indexes) {
         if (await indexExist(queryExecutor, index.table, index.name)) continue;
 
-        await queryExecutor(`CREATE INDEX ${index.name} ON ${index.table} (${index.column});`);
+        await queryExecutor(`CREATE INDEX ${index.name} ON ${index.table} (\`${index.column}\`);`);
     }
 }
 
