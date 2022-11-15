@@ -29,7 +29,19 @@ router.get('/entity/:id/item', async function(req, res) {
 
 router.get('/entity/:id/step', async function(req, res) {
     const id = req.params.id;
-    res.send(await TracingAPI.storage.fetchEntitySteps(id));
+    const entity = await TracingAPI.storage.fetchEntityById(id);
+
+    if (
+        ! entity ||
+        ! TracingAPI.entities[entity.key]
+    ) {
+        res.send([]);
+        return;
+    }
+
+    const steps = Object.keys(TracingAPI.entities[entity.key].stepsForFiltering || {});
+
+    res.send(steps);
 });
 
 router.get('/item/:id', async function(req, res) {

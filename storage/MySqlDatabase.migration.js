@@ -5,7 +5,8 @@ const MySqlDatabaseMigration = async (queryExecutor) => {
         createTracingStepsTableIfNotExists,
         addDateTimeFieldToTracingItemsTableIfNotExists,
         changeTypeOfDateTimeColumn,
-        addSearchFieldToTracingItems
+        addSearchFieldToTracingItems,
+        addIndexes,
     ];
 
     await migrate(queryExecutor, migrations);
@@ -50,7 +51,7 @@ const createTracingStepsTableIfNotExists = async (queryExecutor) => {
 
 const addDateTimeFieldToTracingItemsTableIfNotExists = async (queryExecutor) => {
     if (await columnExist(queryExecutor, 'tracing_items', 'datetime')) return;
-    
+
     await queryExecutor(
         "ALTER TABLE `tracing_items` \n" +
         "ADD COLUMN datetime varchar(255);"
@@ -78,6 +79,42 @@ const addSearchFieldToTracingItems = async (queryExecutor) => {
     );
 }
 
+const addIndexes = async (queryExecutor) => {
+    const indexes = [
+        {
+            table: "tracing_entities",
+            column: "key",
+            name: "tracing_entity_key"
+        },
+        {
+            table: "tracing_items",
+            column: "key",
+            name: "tracing_item_key"
+        },
+        {
+            table: "tracing_items",
+            column: "entity_id",
+            name: "tracing_item_entity_id"
+        },
+        {
+            table: "tracing_steps",
+            column: "name",
+            name: "tracing_step_name"
+        },
+        {
+            table: "tracing_steps",
+            column: "item_id",
+            name: "tracing_step_item_id"
+        }
+    ];
+
+    for (const index of indexes) {
+        if (await indexExist(queryExecutor, index.table, index.name)) continue;
+
+        await queryExecutor(`CREATE INDEX ${index.name} ON ${index.table} (${index.column});`);
+    }
+}
+
 const columnExist = async (queryExecutor, table, column) => {
     return (await queryExecutor(
         "SHOW COLUMNS FROM ?? WHERE Field = ?;",
@@ -85,10 +122,17 @@ const columnExist = async (queryExecutor, table, column) => {
     )).length > 0;
 }
 
+const indexExist = async (queryExecutor, table, indexName) => {
+    return (await queryExecutor(
+        "SHOW INDEX FROM ?? WHERE Key_name = ?;",
+        [ table, indexName ]
+    )).length > 0;
+}
+
 const migrate = async (queryExecutor, migrations) => {
     for (const migration of migrations) {
         console.log(`Tracing API: Running migration ${migration.name}`);
-        await migration(queryExecutor)   
+        await migration(queryExecutor);
     }
 }
 
