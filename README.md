@@ -35,9 +35,9 @@ tracingStorage
         tracing.registerEntity('Calls', 'calls');
         
         // Steps registration for making filtering items by steps available
-        tracing.registerEntitySteps('Leads', [ "Added", "Updated", "Deleted" ]);
-        tracing.registerEntitySteps('Users', [ "Registered", "Initiated call" ]);
-        tracing.registerEntitySteps('Calls', [ "Started", "Finished" ]);
+        tracing.registerEntitySteps('leads', [ "Added", "Updated", "Deleted" ]);
+        tracing.registerEntitySteps('users', [ "Registered", "Initiated call" ]);
+        tracing.registerEntitySteps('calls', [ "Started", "Finished" ]);
     });
 ```
 
@@ -91,6 +91,16 @@ tracing instance (id of the user or lead, as an example). Third parameter is an 
 Also, you can set array with keywords for searching as a fourth parameter.
 
 Last parameter of the trace method is an additional data, which should be shown in the UI.
+
+## Custom name for tracing step
+If you need to save new trace with custom name of the step, you can
+set it as a third parameter of the trace method:
+```
+await TracingAPI.trace('users', 1, "Event name", {
+    firstValue: 1,
+    secondValue: 'second value'
+}, [ 'user with id 1', 'first user', 'user_1' ], "My custom name for event");
+```
 
 ## UI
 API package can be used with UI, created with React: https://github.com/VladyslavProkhorenko/tracing-ui

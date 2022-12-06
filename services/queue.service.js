@@ -31,10 +31,10 @@ const QueueService = {
         return this;
     },
 
-    push(entity, item, step, data = {}, searchKeys = [])
+    push(entity, item, step, data = {}, searchKeys = [], customStepName = null)
     {
         this.queue.push({
-            entity, item, step, data, searchKeys
+            entity, item, step, data, searchKeys, customStepName
         });
         return this;
     },
@@ -149,7 +149,8 @@ const QueueService = {
         const steps = queuedTasks.map( task => ({
             step: task.step,
             data: task.data,
-            item_id: task.item_id
+            item_id: task.item_id,
+            custom_step_name: task.customStepName
         }));
 
         await this.storage.createManySteps(steps);
