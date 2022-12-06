@@ -22,7 +22,7 @@ const createFilteringQuery = (type, steps) => {
 
     const operator = type === "include" ? "IN" : "NOT IN";
     let query = "AND id " + operator + "(\n" +
-        "SELECT item_id FROM tracing_steps WHERE name IN (" + steps.map( () => "?").join(",") + ")\n" +
+        "SELECT item_id FROM tracing_steps WHERE alias IN (" + steps.map( () => "?").join(",") + ")\n" +
         ")";
 
     return {
@@ -269,12 +269,14 @@ const MySqlDatabaseStorage = {
         await this.query(sql, [ keys, item.id ])
     },
 
-    async createStep(step, data, itemId) {
+    async createStep(step, data, itemId, customStepName = null) {
         data = JSON.stringify(data);
+        const name = customStepName || step;
+        const alias = step;
 
         const datetime = moment().format(databaseDateTimeFormat);
-        const sql = "INSERT INTO tracing_steps (`name`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?)";
-        return (await this.query(sql, [ step, datetime, itemId, data ])).insertId || null;
+        const sql = "INSERT INTO tracing_steps (`name`, `alias`, `datetime`, `item_id`, `data`) VALUES(?, ?, ?, ?, ?)";
+        return (await this.query(sql, [ name, alias, datetime, itemId, data ])).insertId || null;
     },
 
     async createManySteps(steps) {
@@ -283,12 +285,15 @@ const MySqlDatabaseStorage = {
         const datetime = moment().format(databaseDateTimeFormat);
 
         steps = steps.reduce( (acc, item) => {
-            acc.push([ item.step, datetime, item.item_id, JSON.stringify(item.data) ]);
+            const name = item.custom_step_name || item.step;
+            const alias = item.step;
+
+            acc.push([ name, alias, datetime, item.item_id, JSON.stringify(item.data) ]);
             return acc;
         }, []);
 
         const sql = `
-            INSERT INTO tracing_steps (\`name\`, \`datetime\`, \`item_id\`, \`data\`)
+            INSERT INTO tracing_steps (\`name\`, \`alias\`, \`datetime\`, \`item_id\`, \`data\`)
             VALUES ${steps.map( _ => "(?)").join(", ")}`;
         return await this.query(sql, steps);
     },

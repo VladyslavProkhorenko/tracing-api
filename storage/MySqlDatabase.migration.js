@@ -7,6 +7,7 @@ const MySqlDatabaseMigration = async (queryExecutor) => {
         changeTypeOfDateTimeColumn,
         addSearchFieldToTracingItems,
         addIndexes,
+        addAliasColumn,
     ];
 
     await migrate(queryExecutor, migrations);
@@ -113,6 +114,16 @@ const addIndexes = async (queryExecutor) => {
 
         await queryExecutor(`CREATE INDEX ${index.name} ON ${index.table} (\`${index.column}\`);`);
     }
+}
+
+const addAliasColumn = async (queryExecutor) => {
+    if (await columnExist(queryExecutor, 'tracing_steps', 'alias')) return;
+
+    await queryExecutor(
+        "ALTER TABLE `tracing_steps` \n" +
+        "ADD COLUMN alias varchar(255) NOT NULL AFTER name;"
+    );
+    await queryExecutor(`CREATE INDEX tracing_step_alias ON tracing_steps (\`alias\`);`);
 }
 
 const columnExist = async (queryExecutor, table, column) => {

@@ -50,7 +50,7 @@ router.get('/item/:id', async function(req, res) {
 });
 
 router.post('/trace', async function(req, res) {
-    const { entity, item, step, data = {}, searchKeys = [] } = req.body;
+    const { entity, item, step, data = {}, searchKeys = [], customStepName = null } = req.body;
 
     if (
         !entity || !String(entity).trim().length ||
@@ -64,7 +64,7 @@ router.post('/trace', async function(req, res) {
         return;
     }
 
-    const response = await TracingAPI.trace(entity, item, step, data, searchKeys);
+    const response = await TracingAPI.trace(entity, item, step, data, searchKeys, customStepName);
     res.send(response);
 });
 

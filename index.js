@@ -50,21 +50,21 @@ const TracingAPI = {
         return this;
     },
 
-    async trace(entity, item, step, data = {}, searchKeys = []) {
+    async trace(entity, item, step, data = {}, searchKeys = [], customStepName = null) {
         if (this.queue.enabled) {
-            this.queue.push(entity, item, step, data, searchKeys);
+            this.queue.push(entity, item, step, data, searchKeys, customStepName);
             return generateResponse(true, 'Tracing has been added to the queue');
         }
 
         return this.isRemote
-            ? this.traceRemote(entity, item, step, data, searchKeys)
-            : this.traceLocal(entity, item, step, data, searchKeys);
+            ? this.traceRemote(entity, item, step, data, searchKeys, customStepName)
+            : this.traceLocal(entity, item, step, data, searchKeys, customStepName);
     },
 
-    async traceRemote(entity, item, step, data = {}, searchKeys = []) {
+    async traceRemote(entity, item, step, data = {}, searchKeys = [], customStepName = null) {
         return await this.axiosInstance
             .post("/trace", {
-                entity, item, step, data, searchKeys
+                entity, item, step, data, searchKeys, customStepName
             })
             .then( ({ data }) => {
                 return generateResponse(data.status, data.message);
@@ -74,7 +74,7 @@ const TracingAPI = {
             });
     },
 
-    async traceLocal(entity, item, step, data = {}, searchKeys = []) {
+    async traceLocal(entity, item, step, data = {}, searchKeys = [], customStepName = null) {
         const entityId = await this.storage.findEntity(entity);
 
         if (!entityId) {
@@ -94,7 +94,7 @@ const TracingAPI = {
             await this.storage.updateSearchKeys(foundItem, searchKeys);
         }
 
-        const isStepCreated = Number.isFinite(await this.storage.createStep(step, data, foundItem.id));
+        const isStepCreated = Number.isFinite(await this.storage.createStep(step, data, foundItem.id, customStepName));
 
         return isStepCreated
             ? generateResponse(true, 'Tracing has been saved')
