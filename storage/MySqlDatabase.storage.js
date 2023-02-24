@@ -122,15 +122,17 @@ const MySqlDatabaseStorage = {
         return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `id` = ?", [ id ]))[0] || null;
     },
 
-    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
+    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = [], externalId = null) {
+        let sqlForItems;
         page = page > 0 ? page : 1;
 
         const [ searchSql, searchParams ] = prepareSearchQuery(query);
-
         const pageStart = limit * (page - 1);
         const filtering = createFilteringQuery(filterType, filterSteps);
 
-        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        if (!externalId) sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        else sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE name = '${externalId}' AND entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+
         const items = await this.query(sqlForItems, [ entityId, ...searchParams, ...filtering.params, limit, pageStart ]);
 
         const sqlForCount = `SELECT COUNT(*) as count FROM tracing_items WHERE entity_id = ? ${searchSql}`;

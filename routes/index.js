@@ -20,11 +20,12 @@ router.get('/entity/:id/item', async function(req, res) {
     const id = req.params.id;
     const page = req.query.page || 1;
     const query = req.query.query;
+    const externalId = req.query.externalId;
     const filterStepsFromQuery = req.query.filterSteps || "";
     const filterType = req.query.filterType || null;
     const filterSteps = filterStepsFromQuery.length ? filterStepsFromQuery.split(",").map( item => item.trim() ) : [];
 
-    res.send(await TracingAPI.storage.fetchItemsOfEntity(id, page, 20, query, filterType, filterSteps));
+    res.send(await TracingAPI.storage.fetchItemsOfEntity(id, page, 20, query, filterType, filterSteps, externalId));
 });
 
 router.get('/entity/:id/step', async function(req, res) {
