@@ -53,7 +53,7 @@ const TracingAPI = {
     async trace(entity, item, step, data = {}, searchKeys = [], customStepName = null) {
         if (this.queue.enabled) {
             this.queue.push(entity, item, step, data, searchKeys, customStepName);
-            return generateResponse(true, 'Tracing has been added to the queue');
+            return generateResponse(true, "Tracing has been added to the queue");
         }
 
         return this.isRemote
@@ -78,7 +78,7 @@ const TracingAPI = {
         const entityId = await this.storage.findEntity(entity);
 
         if (!entityId) {
-            return generateResponse(false, 'Entity has not been found', { entity });
+            return generateResponse(false, "Entity has not been found", { entity });
         }
 
         let foundItem = await this.storage.findItem(item, entityId);
@@ -88,7 +88,7 @@ const TracingAPI = {
             foundItem.id = await this.storage.createItem(item, entityId, searchKeys);
 
             if (foundItem.id === null) {
-                return generateResponse(false, 'Item has not been created', { item, entityId });
+                return generateResponse(false, "Item has not been created", { item, entityId });
             }
         } else {
             await this.storage.updateSearchKeys(foundItem, searchKeys);
@@ -97,8 +97,8 @@ const TracingAPI = {
         const isStepCreated = Number.isFinite(await this.storage.createStep(step, data, foundItem.id, customStepName));
 
         return isStepCreated
-            ? generateResponse(true, 'Tracing has been saved')
-            : generateResponse(false, 'Tracing step has not been saved', { step, data, itemId : foundItem ? foundItem.id : null });
+            ? generateResponse(true, "Tracing has been saved")
+            : generateResponse(false, "Tracing step has not been saved", { step, data, itemId : foundItem ? foundItem.id : null });
     },
 
     async registerEntity(name, key) {

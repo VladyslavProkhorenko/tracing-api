@@ -2,7 +2,7 @@ const mysql = require("mysql");
 const moment = require("moment");
 const MySqlDatabaseMigration = require("./MySqlDatabase.migration");
 
-const databaseDateTimeFormat = 'Y-MM-DD HH:mm:ss';
+const databaseDateTimeFormat = "Y-MM-DD HH:mm:ss";
 const searchDelimiter = "|el\n";
 
 const formatSearchKeys = searchKeys => {
@@ -10,12 +10,12 @@ const formatSearchKeys = searchKeys => {
 }
 
 const createFilteringQuery = (type, steps) => {
-    if (type === 'all' || !steps.length) return {
+    if (type === "all" || !steps.length) return {
         query: "",
         params: []
     };
 
-    if (!['include', 'exclude'].find( validType => validType === type )) return {
+    if (!["include", "exclude"].find( validType => validType === type )) return {
         query: "",
         params: []
     };
@@ -32,11 +32,11 @@ const createFilteringQuery = (type, steps) => {
 }
 
 const prepareSearchQuery = (query) => {
-    if (query === null) return [ '', [] ];
+    if (query === null) return [ "", [] ];
 
     const searchQuery = `%${query}%`;
     const searchParams = [ searchQuery, searchQuery, `${searchQuery}|${searchDelimiter}%` ];
-    const searchSql = 'AND (id LIKE ? OR name LIKE ? OR searchable LIKE ?)';
+    const searchSql = "AND (id LIKE ? OR name LIKE ? OR searchable LIKE ?)";
 
     return [ searchSql, searchParams ];
 }
@@ -45,7 +45,7 @@ const prepareSearchKeysToUpdate = (item, searchKeys) => {
     let keys = null;
 
     if (searchKeys !== null && searchKeys !== undefined) {
-        let itemSearchKeys = (item.searchable || '').split(searchDelimiter) || [];
+        let itemSearchKeys = (item.searchable || "").split(searchDelimiter) || [];
 
         itemSearchKeys = itemSearchKeys.map( key => String(key));
         searchKeys = searchKeys.map( key => String(key));
@@ -75,8 +75,8 @@ const MySqlDatabaseStorage = {
 
     connect(host, user, password, port, database) {
         this.pool = mysql.createPool({ host, user, password, port, database, multipleStatements: true })
-        this.pool.on('connection', function (connection) {
-            connection.query('SET SESSION group_concat_max_len = 500000')
+        this.pool.on("connection", function (connection) {
+            connection.query("SET SESSION group_concat_max_len = 500000")
         });
 
         return this;
@@ -122,7 +122,7 @@ const MySqlDatabaseStorage = {
         return (await this.query("SELECT id, name, `key` FROM tracing_entities WHERE `id` = ?", [ id ]))[0] || null;
     },
 
-    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = 'all', filterSteps = []) {
+    async fetchItemsOfEntity(entityId, page = 1, limit = 20, query = null, filterType = "all", filterSteps = []) {
         page = page > 0 ? page : 1;
 
         const [ searchSql, searchParams ] = prepareSearchQuery(query);
@@ -149,7 +149,7 @@ const MySqlDatabaseStorage = {
     },
 
     async fetchEntitySteps(entityId) {
-          const sql = "SELECT DISTINCT name FROM tracing_steps WHERE item_id IN (\n" +
+        const sql = "SELECT DISTINCT name FROM tracing_steps WHERE item_id IN (\n" +
               "    SELECT id FROM tracing_items WHERE entity_id = ?\n" +
               ");"
 
@@ -255,7 +255,7 @@ const MySqlDatabaseStorage = {
         items.forEach( item => {
             const keys = prepareSearchKeysToUpdate(item, item.searchKeys);
 
-            sql.push(`UPDATE tracing_items SET searchable = ? WHERE id = ?;\n`);
+            sql.push("UPDATE tracing_items SET searchable = ? WHERE id = ?;\n");
             args.push(keys, item.id);
         });
 
@@ -299,7 +299,7 @@ const MySqlDatabaseStorage = {
     },
 
     setRetentionPeriod(timeInMinutes) {
-        if (typeof timeInMinutes !== 'number') throw new Error("Time for retention is not a number.");
+        if (typeof timeInMinutes !== "number") throw new Error("Time for retention is not a number.");
         if (timeInMinutes <= 0) throw new Error("Time for retention should be greater than zero.");
 
         this.retentionPeriod = timeInMinutes;
@@ -327,7 +327,7 @@ const MySqlDatabaseStorage = {
     },
 
     async startRetention(intervalInMinutes = 5) {
-        if (typeof intervalInMinutes !== 'number') throw new Error("Retention interval is not a number.");
+        if (typeof intervalInMinutes !== "number") throw new Error("Retention interval is not a number.");
         if (intervalInMinutes <= 0) throw new Error("Retention interval should be greater than zero.");
 
         this.stopRetention();
@@ -345,7 +345,7 @@ const MySqlDatabaseStorage = {
     },
 
     async getOldItemsIds() {
-        const period = moment().subtract(this.retentionPeriod, 'minutes').format(databaseDateTimeFormat);
+        const period = moment().subtract(this.retentionPeriod, "minutes").format(databaseDateTimeFormat);
         return (await this.query(
             "SELECT id FROM `tracing_items` WHERE datetime < ? or datetime IS NULL",
             [ period ]

@@ -51,7 +51,7 @@ const createTracingStepsTableIfNotExists = async (queryExecutor) => {
 }
 
 const addDateTimeFieldToTracingItemsTableIfNotExists = async (queryExecutor) => {
-    if (await columnExist(queryExecutor, 'tracing_items', 'datetime')) return;
+    if (await columnExist(queryExecutor, "tracing_items", "datetime")) return;
 
     await queryExecutor(
         "ALTER TABLE `tracing_items` \n" +
@@ -72,7 +72,7 @@ const changeTypeOfDateTimeColumn = async (queryExecutor) => {
 }
 
 const addSearchFieldToTracingItems = async (queryExecutor) => {
-    if (await columnExist(queryExecutor, 'tracing_items', 'searchable')) return;
+    if (await columnExist(queryExecutor, "tracing_items", "searchable")) return;
 
     await queryExecutor(
         "ALTER TABLE `tracing_items` \n" +
@@ -117,13 +117,13 @@ const addIndexes = async (queryExecutor) => {
 }
 
 const addAliasColumn = async (queryExecutor) => {
-    if (await columnExist(queryExecutor, 'tracing_steps', 'alias')) return;
+    if (await columnExist(queryExecutor, "tracing_steps", "alias")) return;
 
     await queryExecutor(
         "ALTER TABLE `tracing_steps` \n" +
         "ADD COLUMN alias varchar(255) NOT NULL AFTER name;"
     );
-    await queryExecutor(`CREATE INDEX tracing_step_alias ON tracing_steps (\`alias\`);`);
+    await queryExecutor("CREATE INDEX tracing_step_alias ON tracing_steps (`alias`);");
 }
 
 const columnExist = async (queryExecutor, table, column) => {
