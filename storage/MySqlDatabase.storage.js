@@ -130,8 +130,11 @@ const MySqlDatabaseStorage = {
         const pageStart = limit * (page - 1);
         const filtering = createFilteringQuery(filterType, filterSteps);
 
-        if (!externalId) sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
-        else sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE name = '${externalId}' AND entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        if (!externalId) {
+            sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        } else {
+            sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE name = '${externalId}' AND entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        }
 
         const items = await this.query(sqlForItems, [ entityId, ...searchParams, ...filtering.params, limit, pageStart ]);
 
