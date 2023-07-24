@@ -44,9 +44,9 @@ router.get('/entity/:id/step', async function(req, res) {
     res.send(steps);
 });
 
-router.get('/item/:id', async function(req, res) {
-    const id = req.params.id;
-    res.send(await TracingAPI.storage.fetchItem(id));
+router.get('/item/:key', async function(req, res) {
+    const key = req.params.key;
+    res.send(await TracingAPI.storage.fetchItem(key));
 });
 
 router.post('/trace', async function(req, res) {
