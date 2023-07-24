@@ -130,7 +130,7 @@ const MySqlDatabaseStorage = {
         const pageStart = limit * (page - 1);
         const filtering = createFilteringQuery(filterType, filterSteps);
 
-        const sqlForItems = `SELECT id, name, entity_id FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
+        const sqlForItems = `SELECT id, name, entity_id, \`key\` FROM tracing_items WHERE entity_id = ? ${searchSql} ${filtering.query} ORDER BY id DESC LIMIT ? OFFSET ?`;
         const items = await this.query(sqlForItems, [ entityId, ...searchParams, ...filtering.params, limit, pageStart ]);
 
         const sqlForCount = `SELECT COUNT(*) as count FROM tracing_items WHERE entity_id = ? ${searchSql}`;
@@ -156,11 +156,11 @@ const MySqlDatabaseStorage = {
         return this.query(sql, [ entityId ]);
     },
 
-    async fetchItem(id) {
-        const item = (await this.query("SELECT id, name, entity_id FROM tracing_items WHERE id = ?", [ id ]))[0];
+    async fetchItem(key) {
+        const item = (await this.query("SELECT id, name, `key`, entity_id FROM tracing_items WHERE `key` = ?", [ key ]))[0];
         if (!item) return null;
 
-        const steps = await this.query("SELECT id, name, datetime, data FROM tracing_steps WHERE item_id = ? ORDER BY id", [ id ]);
+        const steps = await this.query("SELECT id, name, datetime, data FROM tracing_steps WHERE item_id = ? ORDER BY id", [ item.id ]);
 
         steps.forEach(step => {
             step.data = JSON.parse(step.data) || [];
